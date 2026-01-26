@@ -6,43 +6,57 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear existing data
+  console.log("🌱 Starting dev seed...");
+
+  // Clean existing data (order matters because of FK)
   await prisma.user.deleteMany({});
+  await prisma.company.deleteMany({});
 
   // Create development test users
   const hashedPassword = await bcrypt.hash("Password123!", 10);
 
-  const users = await Promise.all([
-    prisma.user.create({
-      data: {
+  // 1️⃣ Create company
+  const company = await prisma.company.create({
+    data: {
+      name: "Auditly Demo Company",
+    },
+  });
+
+  // 2️⃣ Create users linked to company
+  const users = await prisma.user.createMany({
+    data: [
+      {
         name: "John Doe",
         email: "john@example.com",
         password: hashedPassword,
-        role: "ADMIN",
+        role: "OWNER",
+        companyId: company.id,
       },
-    }),
-    prisma.user.create({
-      data: {
+      {
         name: "Jane Smith",
         email: "jane@example.com",
         password: hashedPassword,
+        role: "ADMIN",
+        companyId: company.id,
       },
-    }),
-    prisma.user.create({
-      data: {
+      {
         name: "Bob Johnson",
         email: "bob@example.com",
         password: hashedPassword,
+        role: "USER",
+        companyId: company.id,
       },
-    }),
-  ]);
+    ],
+  });
 
-  console.log("Development seed completed:", users);
+  console.log("✅ Dev seed completed");
+  console.log("Company:", company);
+  console.log("Users created:", users.count);
 }
 
 main()
   .catch((e) => {
-    console.error("Error seeding development data:", e);
+    console.error("❌ Error seeding development data:", e);
     process.exit(1);
   })
   .finally(async () => {

@@ -3,28 +3,41 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("MYSQL_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model user {
-  id                      String    @id @default(uuid())
-  name                    String    @db.VarChar(99)
-  email                   String    @unique @db.VarChar(99)
-  password                String?   @db.VarChar(100)
-  refreshToken            String?   @db.Text
-  role                    user_role @default(USER)
-  emailVerified           DateTime?
-  emailVerificationToken  String?   @db.VarChar(100)
+  id                       String    @id @default(uuid())
+  name                     String    @db.VarChar(99)
+  email                    String    @unique @db.VarChar(99)
+  password                 String?   @db.VarChar(100)
+  refreshToken             String?
+  role                     user_role @default(USER)
+  companyId                String
+  emailVerified            DateTime?
+  emailVerificationToken   String?   @db.VarChar(100)
   emailVerificationExpires DateTime?
-  passwordResetToken      String?   @db.VarChar(100)
-  passwordResetExpires    DateTime?
-  image                   String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  passwordResetToken       String?   @db.VarChar(100)
+  passwordResetExpires     DateTime?
+  image                    String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  company                  company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+}
+
+model company {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     user[]
 }
 
 enum user_role {
+  OWNER
   ADMIN
   USER
 }
