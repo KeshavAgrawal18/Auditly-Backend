@@ -8,63 +8,75 @@ export class AuthController extends BaseController {
     super();
   }
 
-  signup = (req: Request, res: Response, next: NextFunction): void => {
+  // Register company + owner
+  register = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
-      const { email, name, password } = req.body;
-      return await this.authService.signup(email, name, password);
+      const { companyName, email, name, password } = req.body;
+      return this.authService.register(companyName, email, name, password);
     });
   };
 
+  // Login
   login = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       const { email, password } = req.body;
-      return await this.authService.login(email, password);
+      return this.authService.login(email, password);
     });
   };
 
+  // Refresh access token
+  refresh = (req: Request, res: Response, next: NextFunction): void => {
+    this.handleRequest(req, res, next, async () => {
+      const { refreshToken } = req.body;
+      return this.authService.refresh(refreshToken);
+    });
+  };
+
+  // Current user
+  me = (req: Request, res: Response, next: NextFunction): void => {
+    this.handleRequest(req, res, next, async () => {
+      if (!req.user) throw new AppError("Unauthorized", 401);
+      return req.user;
+    });
+  };
+
+  // Logout
   logout = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       if (!req.user?.userId) {
         throw new AppError("Unauthorized", 401);
       }
+
       await this.authService.logout(req.user.userId);
       return { message: "Logged out successfully" };
     });
   };
 
-  refresh = (req: Request, res: Response, next: NextFunction): void => {
-    this.handleRequest(req, res, next, async () => {
-      const { refreshToken } = req.body;
-      return await this.authService.refresh(refreshToken);
-    });
-  };
-
+  // Verify email
   verifyEmail = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       const { token } = req.params;
-      return await this.authService.verifyEmail(token);
+      await this.authService.verifyEmail(token);
+      return { message: "Email verified" };
     });
   };
 
-  resendVerification = (req: Request, res: Response, next: NextFunction): void => {
-    this.handleRequest(req, res, next, async () => {
-      const { email } = req.body;
-      return await this.authService.resendVerificationEmail(email);
-    });
-  };
-
+  // Forgot password
   forgotPassword = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       const { email } = req.body;
-      return await this.authService.forgotPassword(email);
+      await this.authService.forgotPassword(email);
+      return { message: "If email exists, reset link sent" };
     });
   };
 
+  // Reset password
   resetPassword = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       const { token } = req.params;
       const { password } = req.body;
-      return await this.authService.resetPassword(token, password);
+      await this.authService.resetPassword(token, password);
+      return { message: "Password reset successful" };
     });
   };
 }
