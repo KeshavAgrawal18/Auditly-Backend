@@ -41,3 +41,14 @@ enum user_role {
   ADMIN
   USER
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  companyId String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

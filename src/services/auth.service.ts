@@ -6,14 +6,17 @@ import { AppError } from "@/utils/appError";
 import { ErrorCode } from "@/utils/errorCodes";
 import crypto from "crypto";
 import { EmailService } from "./email.service";
+import { AuditService } from "./audit.service";
 
 const prisma = new PrismaClient();
 
 export class AuthService {
   private emailService: EmailService;
+  private auditService: AuditService;
 
   constructor() {
     this.emailService = new EmailService();
+    this.auditService = new AuditService();
   }
 
   // =====================
@@ -81,6 +84,11 @@ export class AuthService {
         emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+    await this.auditService.createLog({
+      action: "COMPANY_REGISTERED",
+      userId: user.id,
+      companyId: company.id,
+    });
 
     await this.emailService.sendVerificationEmail(email, name, verifyToken);
 
@@ -138,6 +146,11 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data: { refreshToken },
+    });
+    await this.auditService.createLog({
+      action: "USER_LOGIN",
+      userId: user.id,
+      companyId: user.companyId,
     });
 
     return { user, accessToken, refreshToken };
@@ -222,6 +235,12 @@ export class AuthService {
       },
     });
 
+    await this.auditService.createLog({
+      action: "PASSWORD_RESET_REQUESTED",
+      userId: user.id,
+      companyId: user.companyId,
+    });
+
     await this.emailService.sendPasswordResetEmail(
       user.email,
       user.name,
@@ -250,6 +269,12 @@ export class AuthService {
         passwordResetToken: null,
         passwordResetExpires: null,
       },
+    });
+
+    await this.auditService.createLog({
+      action: "PASSWORD_RESET_COMPLETED",
+      userId: user.id,
+      companyId: user.companyId,
     });
 
     return { message: "Password reset successfully" };
