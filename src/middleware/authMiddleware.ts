@@ -7,6 +7,7 @@ import { ENV } from "@/config/env";
 
 interface JwtPayload {
   userId: string;
+  companyId: string;
   role: string;
 }
 
@@ -21,7 +22,7 @@ declare global {
 export const requireAuth = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -29,8 +30,14 @@ export const requireAuth = (
       throw new AppError("No token provided", 401, ErrorCode.UNAUTHORIZED);
     }
     try {
-      const decoded = jwt.verify(token, ENV.JWT_SECRET) as JwtPayload;
-      req.user = decoded;
+      const decoded = jwt.verify(token, ENV.JWT_SECRET) as any;
+
+      req.user = {
+        userId: decoded.userId,
+        companyId: decoded.companyId,
+        role: decoded.role,
+      };
+
       next();
     } catch (error) {
       logger.warn({
@@ -41,7 +48,7 @@ export const requireAuth = (
       throw new AppError(
         "Unauthorized - Invalid token",
         401,
-        ErrorCode.INVALID_TOKEN
+        ErrorCode.INVALID_TOKEN,
       );
     }
   } catch (error) {
@@ -63,7 +70,7 @@ export const requireRole = (roles: string[]) => {
         throw new AppError(
           "Forbidden - Insufficient permissions",
           403,
-          ErrorCode.FORBIDDEN
+          ErrorCode.FORBIDDEN,
         );
       }
       next();

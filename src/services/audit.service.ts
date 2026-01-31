@@ -118,4 +118,28 @@ export class AuditService {
       );
     }
   }
+
+  async getLogs(filters: {
+    companyId?: string;
+    action?: string;
+    userId?: string;
+    from?: string;
+    to?: string;
+  }) {
+    const { companyId, action, userId, from, to } = filters;
+
+    return prisma.auditLog.findMany({
+      where: {
+        companyId,
+        action: action || undefined,
+        userId: userId || undefined,
+        createdAt: {
+          gte: from ? new Date(from) : undefined,
+          lte: to ? new Date(to) : undefined,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  }
 }
