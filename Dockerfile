@@ -29,6 +29,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
+# Create the logs directory with correct ownership
+RUN mkdir -p /app/logs && chown appuser:appgroup /app/logs
+
 # Copy necessary files from the build stage
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
