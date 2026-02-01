@@ -12,11 +12,13 @@ COPY prisma ./prisma/
 COPY tsconfig*.json ./
 COPY .env.example ./.env
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for the build step)
+RUN npm ci
 
-# Copy source code
+# Copy the rest of the source code
 COPY . .
+
+# Run the build process (this will use TypeScript)
 RUN npm run build
 
 # Production Stage
@@ -27,6 +29,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
+# Copy necessary files from the build stage
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/package*.json ./
@@ -38,8 +41,9 @@ USER appuser
 
 EXPOSE 4300
 
-# Health check
+# Health check to verify if the API is healthy
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4300/health || exit 1
 
-CMD ["npm", "start"] 
+# Command to start the application
+CMD ["npm", "start"]
