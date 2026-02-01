@@ -4,10 +4,10 @@
   "main": "index.ts",
   "license": "MIT",
   "scripts": {
-    "start": "node --expose-gc --trace-gc --trace-gc-ignore-scavenger --node-options='--require=perf_hooks' dist/index.js",
+    "start": "node dist/index.js",
     "dev": "npx nodemon",
     "dev:clean": "rimraf dist && tsx watch src/index.ts",
-    "build": "tsc -p . && tsc-alias",
+    "build": "prisma generate && tsc -p . && tsc-alias",
     "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",
     "docker:dev:down": "docker compose -f docker-compose.dev.yml down -v",

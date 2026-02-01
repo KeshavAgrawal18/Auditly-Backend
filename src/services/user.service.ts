@@ -46,7 +46,7 @@ export class UserService {
       name: string;
       email: string;
       role: "ADMIN" | "USER";
-    }>
+    }>,
   ) {
     return prisma.user.update({
       where: { id },
@@ -73,6 +73,7 @@ export class UserService {
     email: string;
     password: string;
     role?: "ADMIN" | "USER";
+    companyId: string;
   }) {
     return prisma.user.create({
       data,

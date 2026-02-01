@@ -8,9 +8,10 @@ interface CreateTestUserInput {
   name?: string;
   password?: string;
   role?: user_role;
+  companyId: string;
 }
 
-export const createTestUser = async (data: CreateTestUserInput = {}) => {
+export const createTestUser = async (data: CreateTestUserInput) => {
   const plainPassword = data.password || "Password123!";
   const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
@@ -20,6 +21,7 @@ export const createTestUser = async (data: CreateTestUserInput = {}) => {
       name: data.name || "Test User",
       password: hashedPassword,
       role: data.role || "USER",
+      companyId: data.companyId,
     },
   });
 };

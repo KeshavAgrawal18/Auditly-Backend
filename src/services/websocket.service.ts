@@ -1,11 +1,11 @@
-import { Server } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { ErrorMonitoringService } from './errorMonitoring.service';
-import { MetricsService } from '@/services/metrics.service';
-import { singleton } from '@/decorators/singleton';
+import { Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { ErrorMonitoringService } from "./errorMonitoring.service";
+import { MetricsService } from "@/services/metrics.service";
+import { singleton } from "@/decorators/singleton";
 
 export interface WebSocketMessage {
-  type: 'ping' | 'pong' | 'error' | 'connection';
+  type: "ping" | "pong" | "error" | "connection" | "shutdown";
   data: unknown;
 }
 
@@ -31,19 +31,26 @@ export class WebSocketService {
 
   private initialize(server: Server): void {
     this.wss = new WebSocketServer({ server });
-    
-    this.wss.on('connection', (ws: WebSocket) => {
+
+    this.wss.on("connection", (ws: WebSocket) => {
       this.metricsService.recordWebsocketConnection(true);
-      
-      ws.on('close', () => {
+
+      ws.on("close", () => {
         this.metricsService.recordWebsocketConnection(false);
       });
 
-      ws.on('message', (message: string) => {
-        this.metricsService.recordWebsocketMessage('message', 'in');
+      ws.on("message", (message: string) => {
+        this.metricsService.recordWebsocketMessage("message", "in");
       });
     });
   }
 
-  // Rest of the WebSocket service implementation...
-} 
+  // Broadcasting a message to all clients
+  public broadcast(message: WebSocketMessage): void {
+    this.wss.clients.forEach((client: WebSocket) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message)); // Send the message to the client
+      }
+    });
+  }
+}

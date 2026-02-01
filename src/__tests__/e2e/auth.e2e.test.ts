@@ -3,17 +3,30 @@ import prisma from "@/config/database";
 import bcrypt from "bcrypt";
 
 describe("Auth endpoints", () => {
+  let testCompany: { id: string };
+
   beforeEach(async () => {
     // Clean database before each test
-    await prisma.$transaction([prisma.user.deleteMany()]);
+    await prisma.$transaction([
+      prisma.user.deleteMany(),
+      prisma.company.deleteMany(),
+    ]);
+
+    // Create a company for users
+    testCompany = await prisma.company.create({
+      data: {
+        name: "Test Company",
+      },
+    });
   });
 
-  describe("POST /api/auth/signup", () => {
+  describe("POST /api/auth/register", () => {
     it("should create a new user", async () => {
-      const response = await testApp.post("/api/auth/signup").send({
+      const response = await testApp.post("/api/auth/register").send({
         email: "test@example.com",
         name: "Test User",
         password: "Password123!",
+        companyId: testCompany.id, // Include companyId when creating a user
       });
 
       expect(response.status).toBe(200);
@@ -25,7 +38,7 @@ describe("Auth endpoints", () => {
     beforeEach(async () => {
       const hashedPassword = await bcrypt.hash("Password123!", 10);
 
-      // Create test user with all required fields
+      // Create test user with all required fields and companyId
       await prisma.user.create({
         data: {
           email: "test@example.com",
@@ -35,6 +48,7 @@ describe("Auth endpoints", () => {
           emailVerified: null,
           image: null,
           refreshToken: null,
+          companyId: testCompany.id,
         },
       });
 
@@ -55,7 +69,7 @@ describe("Auth endpoints", () => {
 
   describe("Email verification", () => {
     it("should verify email with valid token", async () => {
-      // Create user with verification token
+      // Create user with verification token and companyId
       const user = await prisma.user.create({
         data: {
           email: "test@example.com",
@@ -63,6 +77,7 @@ describe("Auth endpoints", () => {
           password: await bcrypt.hash("Password123!", 10),
           emailVerificationToken: "test-token",
           emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          companyId: testCompany.id,
         },
       });
 
@@ -71,10 +86,10 @@ describe("Auth endpoints", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      
+
       // Check user is verified
       const verifiedUser = await prisma.user.findUnique({
-        where: { id: user.id }
+        where: { id: user.id },
       });
       expect(verifiedUser?.emailVerified).toBeTruthy();
     });
@@ -86,13 +101,14 @@ describe("Auth endpoints", () => {
     });
 
     it("should send password reset email", async () => {
-      // Create a user first
+      // Create a user first with companyId
       const user = await prisma.user.create({
         data: {
           email: "test@example.com",
           name: "Test User",
           password: await bcrypt.hash("Password123!", 10),
           emailVerified: new Date(),
+          companyId: testCompany.id,
         },
       });
 
@@ -112,7 +128,7 @@ describe("Auth endpoints", () => {
     });
 
     it("should reset password with valid token", async () => {
-      // Create user with reset token
+      // Create user with reset token and companyId
       const resetToken = "test-reset-token";
       const user = await prisma.user.create({
         data: {
@@ -122,6 +138,7 @@ describe("Auth endpoints", () => {
           passwordResetToken: resetToken,
           passwordResetExpires: new Date(Date.now() + 3600000), // 1 hour
           emailVerified: new Date(),
+          companyId: testCompany.id,
         },
       });
 
@@ -152,7 +169,7 @@ describe("Auth endpoints", () => {
     });
 
     it("should not reset password with expired token", async () => {
-      // Create user with expired reset token
+      // Create user with expired reset token and companyId
       await prisma.user.create({
         data: {
           email: "test@example.com",
@@ -161,6 +178,7 @@ describe("Auth endpoints", () => {
           passwordResetToken: "expired-token",
           passwordResetExpires: new Date(Date.now() - 3600000), // 1 hour ago
           emailVerified: new Date(),
+          companyId: testCompany.id,
         },
       });
 
