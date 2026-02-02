@@ -1,53 +1,33 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { ENV } from "@/config/env";
 import { logger } from "@/config/logger";
-import { getVerificationEmailTemplate, getPasswordResetEmailTemplate } from '@/templates/emails';
+import {
+  getVerificationEmailTemplate,
+  getPasswordResetEmailTemplate,
+} from "@/templates/emails";
 
 export class EmailService {
-  private transporter!: nodemailer.Transporter;
+  private resendClient: Resend;
   private readonly fromAddress: string;
 
   constructor() {
-    // Production SMTP setup
-    this.transporter = nodemailer.createTransport({
-      host: ENV.SMTP_HOST,
-      port: ENV.SMTP_PORT,
-      secure: ENV.SMTP_PORT === 465,
-      auth: {
-        user: ENV.SMTP_USER,
-        pass: ENV.SMTP_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: true
-      }
-    });
-    this.fromAddress = ENV.SMTP_FROM || 'noreply@example.com';
-    
-    logger.info("Using SMTP configuration", {
+    // Initialize Resend client
+    this.resendClient = new Resend(ENV.RESEND_API_KEY);
+    this.fromAddress = ENV.SMTP_FROM || "noreply@example.com";
+
+    logger.info("Using Resend configuration", {
       context: "EmailService.constructor",
-      host: ENV.SMTP_HOST,
+      apiKey: ENV.RESEND_API_KEY ? "*****" : "Missing API Key", // Masking API Key in logs
     });
 
     // Add email template precompilation
     this.precompileTemplates();
-    
-    // Add connection testing
-    this.testConnection();
-  }
-
-  private async testConnection() {
-    try {
-      await this.transporter.verify();
-      logger.info("SMTP connection verified");
-    } catch (error) {
-      logger.error("SMTP connection failed", { error });
-    }
   }
 
   private precompileTemplates() {
     try {
-      getVerificationEmailTemplate('test', 'test'); // Pre-compile by running once
-      getPasswordResetEmailTemplate('test', 'test'); // Pre-compile by running once
+      getVerificationEmailTemplate("test", "test"); // Pre-compile by running once
+      getPasswordResetEmailTemplate("test", "test"); // Pre-compile by running once
       logger.info("Email templates precompiled successfully");
     } catch (error) {
       logger.error("Failed to precompile email templates", { error });
@@ -57,22 +37,26 @@ export class EmailService {
   async sendVerificationEmail(
     to: string,
     name: string,
-    verificationToken: string
+    verificationToken: string,
   ): Promise<void> {
     const verificationUrl = `${ENV.SERVER_URL}/api/auth/verify-email/${verificationToken}`; // TODO: Change this to frontend URL
 
     try {
-      const info = await this.transporter.sendMail({
+      const emailContent = getVerificationEmailTemplate(name, verificationUrl);
+
+      const result = await this.resendClient.emails.send({
         from: this.fromAddress,
         to,
         subject: "Verify your email address",
-        html: getVerificationEmailTemplate(name, verificationUrl),
+        html: emailContent,
       });
+
+      const messageId = result.data?.id;
 
       logger.info("Verification email sent", {
         context: "EmailService.sendVerificationEmail",
         to,
-        messageId: info.messageId,
+        messageId,
       });
     } catch (error) {
       logger.error("Failed to send verification email", {
@@ -87,22 +71,27 @@ export class EmailService {
   async sendPasswordResetEmail(
     to: string,
     name: string,
-    resetToken: string
+    resetToken: string,
   ): Promise<void> {
     const resetUrl = `${ENV.SERVER_URL}/reset-password/${resetToken}`; // TODO: Change this to frontend URL
 
     try {
-      const info = await this.transporter.sendMail({
+      const emailContent = getPasswordResetEmailTemplate(name, resetUrl);
+
+      const result = await this.resendClient.emails.send({
         from: this.fromAddress,
         to,
         subject: "Reset Your Password",
-        html: getPasswordResetEmailTemplate(name, resetUrl),
+        html: emailContent,
       });
+
+      const messageId = result.data?.id;
+      console.log({ result });
 
       logger.info("Password reset email sent", {
         context: "EmailService.sendPasswordResetEmail",
         to,
-        messageId: info.messageId,
+        messageId,
       });
     } catch (error) {
       logger.error("Failed to send password reset email", {
@@ -113,4 +102,4 @@ export class EmailService {
       throw error;
     }
   }
-} 
+}
