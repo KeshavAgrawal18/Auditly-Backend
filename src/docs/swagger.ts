@@ -1,55 +1,62 @@
-import swaggerJsdoc from 'swagger-jsdoc';
-import { version } from '../../package.json';
+import swaggerJsdoc from "swagger-jsdoc";
+import { version } from "../../package.json";
 
 const options: swaggerJsdoc.Options = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'Express TypeScript API',
+      title: "Auditly API",
       version,
-      description: 'API documentation for Express TypeScript Boilerplate',
+      description: "API documentation for Auditly",
       license: {
-        name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT',
+        name: "MIT",
+        url: "https://opensource.org/licenses/MIT",
       },
     },
     servers: [
       {
-        url: '/api',
-        description: 'API server',
+        url: "/api",
+        description: "API server",
       },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
         },
       },
       responses: {
         UnauthorizedError: {
-          description: 'Access token is missing or invalid',
+          description: "Access token is missing or invalid",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  success: { type: 'boolean', example: false },
-                  message: { type: 'string' },
-                  code: { type: 'string' }
-                }
-              }
-            }
-          }
-        }
-      }
+                  success: { type: "boolean", example: false },
+                  message: { type: "string" },
+                  code: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
     },
-    security: [{
-      bearerAuth: [],
-    }],
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: ['./src/routes/*.ts', './src/docs/schemas/*.yml'],
+  apis: [
+    "./src/routes/*.ts",
+    "./src/docs/schemas/*.yml",
+    "./dist/src/routes/*.js",
+    "./dist/src/docs/schemas/*.yml",
+  ],
 };
 
-export const specs = swaggerJsdoc(options); 
+export const specs = swaggerJsdoc(options);

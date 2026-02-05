@@ -49,7 +49,7 @@ setupMiddleware(app);
 
 // Routes
 app.get("/", (req, res) => {
-  res.json({ message: "🚀 Hello from express-boilerplate Backend!" });
+  res.json({ message: "🚀 Hello from Auditly Backend!" });
 });
 
 // Health Check
@@ -80,7 +80,7 @@ const swaggerOptions = {
     tryItOutEnabled: true,
   },
   customCss: ".swagger-ui .topbar { display: none }",
-  customSiteTitle: "Express TypeScript API Documentation",
+  customSiteTitle: "Auditly API Documentation",
 };
 
 // Move monitoring routes before error handler
