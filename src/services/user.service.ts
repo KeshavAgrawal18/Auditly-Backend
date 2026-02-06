@@ -61,12 +61,19 @@ export class UserService {
       role: "ADMIN" | "USER";
     }>,
   ) {
-    return prisma.user.updateMany({
+    return prisma.user.update({
       where: {
         id,
         companyId,
       },
       data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        companyId: true,
+      },
     });
   }
 

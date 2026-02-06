@@ -10,10 +10,16 @@ export class AuthController extends BaseController {
 
   // Register company + owner
   register = (req: Request, res: Response, next: NextFunction): void => {
-    this.handleRequest(req, res, next, async () => {
-      const { companyName, email, name, password } = req.body;
-      return this.authService.register(companyName, email, name, password);
-    });
+    this.handleRequest(
+      req,
+      res,
+      next,
+      async () => {
+        const { companyName, email, name, password } = req.body;
+        return this.authService.register(companyName, email, name, password);
+      },
+      201,
+    );
   };
 
   // Login

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { UserService } from "@/services/user.service";
 import { BaseController } from "./base.controller";
 import { AppError } from "@/utils/appError";
+import { ErrorCode } from "@/utils/errorCodes";
 
 export class UserController extends BaseController {
   constructor(private userService: UserService) {
@@ -48,16 +49,22 @@ export class UserController extends BaseController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    await this.handleRequest(req, res, next, async () => {
-      if (!req.user || req.user.role === "USER") {
-        throw new AppError("Not authorized to create users", 403);
-      }
+    await this.handleRequest(
+      req,
+      res,
+      next,
+      async () => {
+        if (!req.user || req.user.role === "USER") {
+          throw new AppError("Not authorized to create users", 403);
+        }
 
-      return this.userService.createUser({
-        ...req.body,
-        companyId: req.user.companyId, // enforced
-      });
-    });
+        return this.userService.createUser({
+          ...req.body,
+          companyId: req.user.companyId, // enforced
+        });
+      },
+      201,
+    );
   };
 
   update = async (
@@ -90,14 +97,24 @@ export class UserController extends BaseController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    await this.handleRequest(req, res, next, async () => {
-      if (!req.user || req.user.role !== "OWNER") {
-        throw new AppError("Only owners can delete users", 403);
-      }
+    await this.handleRequest(
+      req,
+      res,
+      next,
+      async () => {
+        if (!req.user || req.user.role !== "OWNER") {
+          throw new AppError(
+            "Only owners can delete users",
+            403,
+            ErrorCode.FORBIDDEN,
+          );
+        }
 
-      await this.userService.deleteUser(req.user.companyId, req.params.id);
+        await this.userService.deleteUser(req.user.companyId, req.params.id);
 
-      return null;
-    });
+        return null;
+      },
+      204,
+    );
   };
 }

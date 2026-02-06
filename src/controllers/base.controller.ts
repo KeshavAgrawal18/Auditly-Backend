@@ -6,13 +6,14 @@ export abstract class BaseController {
     req: Request,
     res: Response,
     next: NextFunction,
-    action: () => Promise<any>
+    action: () => Promise<any>,
+    statusCode: number = 200,
   ): Promise<void> {
     try {
       const result = await action();
-      ApiResponse.success(res, result);
+      ApiResponse.success(res, result, "Success", statusCode);
     } catch (error) {
       next(error);
     }
   }
-} 
+}
