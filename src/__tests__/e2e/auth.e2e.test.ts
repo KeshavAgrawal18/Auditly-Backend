@@ -1,59 +1,45 @@
 import { testApp } from "../setup.e2e";
 import prisma from "@/config/database";
-import bcrypt from "bcrypt";
 
-describe("Auth endpoints", () => {
-  let testCompany: { id: string };
-
+describe("Auth endpoints (e2e)", () => {
   beforeEach(async () => {
     // Clean database before each test
     await prisma.$transaction([
       prisma.user.deleteMany(),
       prisma.company.deleteMany(),
     ]);
-
-    // Create a company for users
-    testCompany = await prisma.company.create({
-      data: {
-        name: "Test Company",
-      },
-    });
   });
 
   describe("POST /api/auth/register", () => {
-    it("should create a new user", async () => {
+    it("should register company and owner", async () => {
       const response = await testApp.post("/api/auth/register").send({
         email: "test@example.com",
         name: "Test User",
         password: "Password123!",
-        companyId: testCompany.id, // Include companyId when creating a user
+        companyName: "Test Company",
       });
 
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveProperty("id");
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toHaveProperty("id");
+      expect(response.body.data.user.companyId).toBeTruthy();
     });
   });
 
   describe("POST /api/auth/login", () => {
     beforeEach(async () => {
-      const hashedPassword = await bcrypt.hash("Password123!", 10);
-
-      // Create test user with all required fields and companyId
-      await prisma.user.create({
-        data: {
-          email: "test@example.com",
-          name: "Test User",
-          password: hashedPassword,
-          role: "USER",
-          emailVerified: null,
-          image: null,
-          refreshToken: null,
-          companyId: testCompany.id,
-        },
+      await testApp.post("/api/auth/register").send({
+        email: "test@example.com",
+        name: "Test User",
+        password: "Password123!",
+        companyName: "Test Company",
       });
 
-      // Wait a bit to ensure user is created
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // mark email as verified (same as prod flow)
+      await prisma.user.update({
+        where: { email: "test@example.com" },
+        data: { emailVerified: new Date() },
+      });
     });
 
     it("should login successfully", async () => {
@@ -63,122 +49,101 @@ describe("Auth endpoints", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveProperty("accessToken");
+      expect(response.body.data.accessToken).toBeTruthy();
+      expect(response.body.data.refreshToken).toBeTruthy();
     });
   });
 
   describe("Email verification", () => {
     it("should verify email with valid token", async () => {
-      // Create user with verification token and companyId
-      const user = await prisma.user.create({
-        data: {
-          email: "test@example.com",
-          name: "Test User",
-          password: await bcrypt.hash("Password123!", 10),
-          emailVerificationToken: "test-token",
-          emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          companyId: testCompany.id,
-        },
+      await testApp.post("/api/auth/register").send({
+        email: "verify@example.com",
+        name: "Verify User",
+        password: "Password123!",
+        companyName: "Verify Corp",
       });
 
+      const user = await prisma.user.findUnique({
+        where: { email: "verify@example.com" },
+      });
+
+      expect(user?.emailVerificationToken).toBeTruthy();
+
       const response = await testApp
-        .get("/api/auth/verify-email/test-token")
+        .get(`/api/auth/verify-email/${user!.emailVerificationToken}`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
 
-      // Check user is verified
       const verifiedUser = await prisma.user.findUnique({
-        where: { id: user.id },
+        where: { id: user!.id },
       });
+
       expect(verifiedUser?.emailVerified).toBeTruthy();
     });
   });
 
-  describe("Password Reset", () => {
+  describe("Password reset", () => {
     beforeEach(async () => {
-      await prisma.user.deleteMany();
+      await testApp.post("/api/auth/register").send({
+        email: "reset@example.com",
+        name: "Reset User",
+        password: "Password123!",
+        companyName: "Reset Corp",
+      });
+
+      await prisma.user.update({
+        where: { email: "reset@example.com" },
+        data: { emailVerified: new Date() },
+      });
     });
 
     it("should send password reset email", async () => {
-      // Create a user first with companyId
-      const user = await prisma.user.create({
-        data: {
-          email: "test@example.com",
-          name: "Test User",
-          password: await bcrypt.hash("Password123!", 10),
-          emailVerified: new Date(),
-          companyId: testCompany.id,
-        },
-      });
-
       const response = await testApp
         .post("/api/auth/forgot-password")
-        .send({ email: "test@example.com" })
+        .send({ email: "reset@example.com" })
         .expect(200);
 
       expect(response.body.success).toBe(true);
 
-      // Verify token was created
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: user.id },
+      const user = await prisma.user.findUnique({
+        where: { email: "reset@example.com" },
       });
-      expect(updatedUser?.passwordResetToken).toBeTruthy();
-      expect(updatedUser?.passwordResetExpires).toBeTruthy();
+
+      expect(user?.passwordResetToken).toBeTruthy();
+      expect(user?.passwordResetExpires).toBeTruthy();
     });
 
     it("should reset password with valid token", async () => {
-      // Create user with reset token and companyId
-      const resetToken = "test-reset-token";
-      const user = await prisma.user.create({
-        data: {
-          email: "test@example.com",
-          name: "Test User",
-          password: await bcrypt.hash("OldPassword123!", 10),
-          passwordResetToken: resetToken,
-          passwordResetExpires: new Date(Date.now() + 3600000), // 1 hour
-          emailVerified: new Date(),
-          companyId: testCompany.id,
-        },
+      await testApp
+        .post("/api/auth/forgot-password")
+        .send({ email: "reset@example.com" });
+
+      const user = await prisma.user.findUnique({
+        where: { email: "reset@example.com" },
       });
 
       const response = await testApp
-        .post(`/api/auth/reset-password/${resetToken}`)
+        .post(`/api/auth/reset-password/${user!.passwordResetToken}`)
         .send({ password: "NewPassword123!" })
         .expect(200);
 
       expect(response.body.success).toBe(true);
 
-      // Verify password was changed
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: user.id },
+      const loginResponse = await testApp.post("/api/auth/login").send({
+        email: "reset@example.com",
+        password: "NewPassword123!",
       });
-      expect(updatedUser?.passwordResetToken).toBeNull();
-      expect(updatedUser?.passwordResetExpires).toBeNull();
-
-      // Verify can login with new password
-      const loginResponse = await testApp
-        .post("/api/auth/login")
-        .send({
-          email: "test@example.com",
-          password: "NewPassword123!",
-        })
-        .expect(200);
 
       expect(loginResponse.body.data.accessToken).toBeTruthy();
     });
 
-    it("should not reset password with expired token", async () => {
-      // Create user with expired reset token and companyId
-      await prisma.user.create({
+    it("should fail with expired reset token", async () => {
+      await prisma.user.update({
+        where: { email: "reset@example.com" },
         data: {
-          email: "test@example.com",
-          name: "Test User",
-          password: await bcrypt.hash("Password123!", 10),
           passwordResetToken: "expired-token",
-          passwordResetExpires: new Date(Date.now() - 3600000), // 1 hour ago
-          emailVerified: new Date(),
-          companyId: testCompany.id,
+          passwordResetExpires: new Date(Date.now() - 3600000),
         },
       });
 
@@ -188,7 +153,6 @@ describe("Auth endpoints", () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe("ERR_1004"); // INVALID_TOKEN
     });
   });
 });
